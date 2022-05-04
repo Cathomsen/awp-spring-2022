@@ -9,6 +9,10 @@ const bookSchema = new Schema(
       required: true,
       minLength: [3, "That's too short"],
     },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
     // TODO: add a `userId` property of type Schema.Types.ObjectId with a `ref` to the User model:
     // https://mongoosejs.com/docs/populate.html
   },

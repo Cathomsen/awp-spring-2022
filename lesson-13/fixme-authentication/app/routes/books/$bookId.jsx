@@ -1,13 +1,22 @@
 import { useLoaderData, useCatch } from "@remix-run/react";
 import { json } from "@remix-run/node";
+import { requireUserSession } from "~/sessions.server";
 import connectDb from "~/db/connectDb.server.js";
 
-export async function loader({ params }) {
+export async function loader({ params, request }) {
   const db = await connectDb();
   const book = await db.models.Book.findById(params.bookId);
   if (!book) {
     throw new Response(`Couldn't find book with id ${params.bookId}`, {
       status: 404,
+    });
+  }
+  const session = await requireUserSession(request);
+  const userId = session.get("userId");
+
+  if (book.userId.toString() !== userId) {
+    throw new Response("You are not authorized", {
+      status: 403,
     });
   }
   // TODO: Verify that the book belongs to the currently logged in user, otherwise throw a 403 error

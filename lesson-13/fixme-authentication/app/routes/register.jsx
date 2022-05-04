@@ -1,22 +1,26 @@
 import { json, redirect } from "@remix-run/node";
 import { Form, Link, useActionData } from "@remix-run/react";
 import bcrypt from "bcryptjs";
-import { getSession, commitSession } from "~/sessions.server.js";
+import {
+  getSession,
+  commitSession,
+  requireUserSession,
+} from "~/sessions.server.js";
 import connectDb from "~/db/connectDb.server.js";
 
 export async function action({ request }) {
   const db = await connectDb();
-  const session = await getSession(request.headers.get("Cookie"));
+  const session = await requireUserSession(request);
   const form = await request.formData();
 
   if (form.get("password").trim() !== form.get("repeatPassword").trim()) {
+    return json({ errorMessage: "Passwords not matching" }, { status: 400 });
     // TODO: Return a JSON response with an `errorMessage` about the passwords not matching. Status 400?
-    return null;
   }
 
   if (form.get("password").trim()?.length < 8) {
+    return json({ errorMessage: "Passwords too short" }, { status: 400 });
     // TODO: Return a JSON response with an `errorMessage` about the password length. Status 400?
-    return null;
   }
 
   const hashedPassword = await bcrypt.hash(form.get("password").trim(), 10);
@@ -28,8 +32,13 @@ export async function action({ request }) {
     });
     if (user) {
       session.set("userId", user._id);
+
+      return redirect("/", {
+        headers: {
+          "Set-Cookie": await commitSession(session),
+        },
+      });
       // TODO: Return a redirect to the home page which sets a cookie that commits the session
-      return null;
     } else {
       return json(
         { errorMessage: "User couldn't be created" },
@@ -49,6 +58,10 @@ export async function action({ request }) {
 }
 
 export async function loader({ request }) {
+  const session = await getSession(request.headers.get("Cookie"));
+  if (session.get("userId")) {
+    return redirect("/");
+  }
   // TODO: Check if the session has a userId, and if so; redirect to the homepage
   return null;
 }
